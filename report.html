@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ticket Report</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h2 {
+      color: #333;
+      border-bottom: 2px solid #28a745;
+      padding-bottom: 10px;
+      margin-bottom: 20px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      text-align: left;
+    }
+    th {
+      background-color: #28a745;
+      color: white;
+      position: sticky;
+      top: 0;
+    }
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    tr:hover {
+      background-color: #f1f1f1;
+    }
+    .actions {
+      margin: 25px 0;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background-color 0.3s;
+    }
+    button.download {
+      background: #17a2b8;
+      color: white;
+    }
+    button.download:hover {
+      background: #138496;
+    }
+    button.email {
+      background: #6f42c1;
+      color: white;
+    }
+    button.email:hover {
+      background: #5a32a3;
+    }
+    button.back {
+      background: #6c757d;
+      color: white;
+    }
+    button.back:hover {
+      background: #5a6268;
+    }
+    .email-form {
+      margin: 20px 0;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 5px;
+      border: 1px solid #eee;
+    }
+    .email-form h3 {
+      margin-top: 0;
+      color: #2c3e50;
+    }
+    .email-form input {
+      padding: 10px;
+      margin-right: 10px;
+      width: 300px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .status-message {
+      margin: 15px 0;
+      padding: 12px;
+      border-radius: 4px;
+      display: none;
+    }
+    .success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    .info {
+      background: #cce5ff;
+      color: #004085;
+      border: 1px solid #b8daff;
+    }
+    .loading {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: spin 1s ease-in-out infinite;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .report-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .report-title {
+      font-size: 18px;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+    .report-meta {
+      color: #6c757d;
+      font-size: 14px;
+    }
+    .no-tickets {
+      padding: 20px;
+      text-align: center;
+      color: #6c757d;
+      font-style: italic;
+    }
+  </style>
+  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <h2>Ticket Management System</h2>
+    
+    <div class="email-form">
+      <h3>Email Report</h3>
+      <input type="email" id="emailAddress" placeholder="Enter recipient email address" required>
+      <button class="email" onclick="sendEmailReport()" id="emailBtn">
+        Send Report via Email
+      </button>
+      <div id="statusMessage" class="status-message"></div>
+    </div>
+    
+    <div id="reportContent">
+      <div class="report-header">
+        <div class="report-title">Ticket Summary Report</div>
+        <div class="report-meta" id="reportDate"></div>
+      </div>
+      <div id="reportData" style="overflow-x: auto;">
+        <!-- Tickets will be loaded here -->
+      </div>
+    </div>
+    
+    <div class="actions">
+      <button class="download" onclick="downloadReport()">Download as CSV</button>
+      <button class="back" onclick="window.location.href='sap.html'">Create New Ticket</button>
+    </div>
+  </div>
+
+  <script>
+    // Format date for display
+    function formatDate(dateString) {
+      const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+      return new Date(dateString).toLocaleDateString(undefined, options);
+    }
+
+    // Load and display tickets
+    function loadTickets() {
+      document.getElementById('reportDate').textContent = `Generated on: ${new Date().toLocaleString()}`;
+      
+      const tickets = JSON.parse(localStorage.getItem('tickets') || '[]');
+      const reportDiv = document.getElementById('reportData');
+      
+      if (tickets.length === 0) {
+        reportDiv.innerHTML = '<div class="no-tickets">No tickets found. Create your first ticket to get started.</div>';
+        return;
+      }
+
+      // Create table with all tickets
+      let tableHTML = `
+        <table>
+          <thead>
+            <tr>
+              ${Object.keys(tickets[0]).filter(key => key !== 'timestamp').map(key => 
+                `<th>${key.replace(/([A-Z])/g, ' $1').toUpperCase()}</th>`
+              ).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${tickets.map(ticket => `
+              <tr>
+                ${Object.entries(ticket).filter(([key]) => key !== 'timestamp').map(([key, value]) => `
+                  <td>${value ? (key.toLowerCase().includes('date') ? formatDate(value) : value.toString()) : '-'}</td>
+                `).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div style="margin-top: 10px; font-style: italic;">
+          Showing ${tickets.length} ticket(s)
+        </div>
+      `;
+      
+      reportDiv.innerHTML = tableHTML;
+
+      // Auto-fill email from URL if provided
+      const urlParams = new URLSearchParams(window.location.search);
+      const emailParam = urlParams.get('email');
+      if (emailParam) {
+        document.getElementById('emailAddress').value = emailParam;
+      }
+    }
+
+    // Download report as CSV
+    function downloadReport() {
+      const tickets = JSON.parse(localStorage.getItem('tickets') || '[]');
+      if (tickets.length === 0) {
+        showStatus('No tickets to download', 'error');
+        return;
+      }
+
+      // Prepare CSV headers (exclude timestamp)
+      const headers = Object.keys(tickets[0]).filter(key => key !== 'timestamp');
+      
+      // Prepare CSV rows
+      const rows = tickets.map(ticket => {
+        return headers.map(header => {
+          let value = ticket[header] || '';
+          // Format dates properly
+          if (header.toLowerCase().includes('date') && value) {
+            value = formatDate(value);
+          }
+          // Escape quotes and wrap in quotes
+          return `"${value.toString().replace(/"/g, '""')}"`;
+        }).join(',');
+      });
+
+      // Combine headers and rows
+      const csvContent = [
+        headers.join(','),
+        ...rows
+      ].join('\n');
+
+      // Create download link
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `tickets_report_${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // Send report via email
+    function sendEmailReport() {
+      const email = document.getElementById('emailAddress').value.trim();
+      const statusDiv = document.getElementById('statusMessage');
+      const emailBtn = document.getElementById('emailBtn');
+      
+      // Validate email
+      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        showStatus('Please enter a valid email address', 'error');
+        return;
+      }
+
+      // Disable button and show loading
+      emailBtn.disabled = true;
+      emailBtn.innerHTML = 'Sending <span class="loading"></span>';
+      showStatus('Preparing your report...', 'info');
+      
+      // Capture screenshot of report
+      html2canvas(document.getElementById('reportContent'), {
+        scale: 2,
+        logging: false,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff'
+      }).then(canvas => {
+        showStatus('Generating report image...', 'info');
+        
+        const screenshot = canvas.toDataURL('image/png');
+        const formData = new FormData();
+        formData.append('email', email);
+        formData.append('screenshot', screenshot);
+        
+        // Send to server
+        fetch('email_report.php', {
+          method: 'POST',
+          body: formData
+        })
+        .then(async response => {
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Server returned an error');
+          }
+          return response.json();
+        })
+        .then(data => {
+          if (data.status === 'success') {
+            showStatus(`Report successfully sent to ${email}`, 'success');
+          } else {
+            throw new Error(data.message || 'Email sending failed');
+          }
+        })
+        .catch(error => {
+          console.error('Email Error:', error);
+          showStatus(`Failed to send email: ${error.message}`, 'error');
+        })
+        .finally(() => {
+          emailBtn.disabled = false;
+          emailBtn.innerHTML = 'Send Report via Email';
+        });
+      }).catch(error => {
+        console.error('Screenshot Error:', error);
+        showStatus('Failed to generate report image', 'error');
+        emailBtn.disabled = false;
+        emailBtn.innerHTML = 'Send Report via Email';
+      });
+    }
+
+    // Show status message
+    function showStatus(message, type) {
+      const statusDiv = document.getElementById('statusMessage');
+      statusDiv.style.display = 'block';
+      statusDiv.className = `status-message ${type}`;
+      statusDiv.textContent = message;
+      
+      // Auto-hide success messages after 5 seconds
+      if (type === 'success') {
+        setTimeout(() => {
+          statusDiv.style.display = 'none';
+        }, 5000);
+      }
+    }
+
+    // Load tickets when page loads
+    window.onload = loadTickets;
+  </script>
+</body>
+</html>
