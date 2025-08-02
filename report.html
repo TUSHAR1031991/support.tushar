@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Ticket Report</title>
+  <title>Ticket Reports</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -23,37 +23,29 @@
       padding-bottom: 10px;
       margin-bottom: 20px;
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 20px 0;
-      font-size: 14px;
+    .report-controls {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 15px;
     }
-    th, td {
-      border: 1px solid #ddd;
-      padding: 12px;
-      text-align: left;
-    }
-    th {
-      background-color: #28a745;
-      color: white;
-      position: sticky;
-      top: 0;
-    }
-    tr:nth-child(even) {
-      background-color: #f9f9f9;
-    }
-    tr:hover {
-      background-color: #f1f1f1;
-    }
-    .actions {
-      margin: 25px 0;
+    .search-filter {
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
     }
+    .search-filter input, .search-filter select {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .actions {
+      display: flex;
+      gap: 10px;
+    }
     button {
-      padding: 10px 16px;
+      padding: 8px 16px;
       border: none;
       border-radius: 4px;
       cursor: pointer;
@@ -74,30 +66,35 @@
     button.email:hover {
       background: #5a32a3;
     }
-    button.back {
-      background: #6c757d;
+    button.new-ticket {
+      background: #28a745;
       color: white;
     }
-    button.back:hover {
-      background: #5a6268;
+    button.new-ticket:hover {
+      background: #218838;
     }
-    .email-form {
-      margin: 20px 0;
-      padding: 20px;
-      background: #f8f9fa;
-      border-radius: 5px;
-      border: 1px solid #eee;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 14px;
     }
-    .email-form h3 {
-      margin-top: 0;
-      color: #2c3e50;
-    }
-    .email-form input {
-      padding: 10px;
-      margin-right: 10px;
-      width: 300px;
+    th, td {
       border: 1px solid #ddd;
-      border-radius: 4px;
+      padding: 12px;
+      text-align: left;
+    }
+    th {
+      background-color: #28a745;
+      color: white;
+      position: sticky;
+      top: 0;
+    }
+    tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    tr:hover {
+      background-color: #f1f1f1;
     }
     .status-message {
       margin: 15px 0;
@@ -115,163 +112,268 @@
       color: #721c24;
       border: 1px solid #f5c6cb;
     }
-    .info {
-      background: #cce5ff;
-      color: #004085;
-      border: 1px solid #b8daff;
-    }
-    .loading {
-      display: inline-block;
-      width: 16px;
-      height: 16px;
-      border: 3px solid rgba(255,255,255,.3);
-      border-radius: 50%;
-      border-top-color: #fff;
-      animation: spin 1s ease-in-out infinite;
-      margin-left: 8px;
-      vertical-align: middle;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-    .report-header {
+    .pagination {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 15px;
+      justify-content: center;
+      margin-top: 20px;
+      gap: 5px;
     }
-    .report-title {
-      font-size: 18px;
-      font-weight: bold;
-      color: #2c3e50;
+    .pagination button {
+      padding: 5px 10px;
+      background: #6c757d;
+      color: white;
     }
-    .report-meta {
-      color: #6c757d;
-      font-size: 14px;
-    }
-    .no-tickets {
-      padding: 20px;
-      text-align: center;
-      color: #6c757d;
-      font-style: italic;
+    .pagination button.active {
+      background: #28a745;
     }
   </style>
-  <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 </head>
 <body>
   <div class="container">
-    <h2>Ticket Management System</h2>
+    <h2>Ticket Reports</h2>
     
-    <div class="email-form">
+    <div class="report-controls">
+      <div class="search-filter">
+        <input type="text" id="searchInput" placeholder="Search tickets...">
+        <select id="filterPriority">
+          <option value="">All Priorities</option>
+          <option value="Low">Low</option>
+          <option value="Medium">Medium</option>
+          <option value="High">High</option>
+          <option value="Critical">Critical</option>
+        </select>
+        <select id="filterStatus">
+          <option value="">All Types</option>
+          <option value="Bug">Bug</option>
+          <option value="Feature">Feature Request</option>
+          <option value="Enhancement">Enhancement</option>
+        </select>
+      </div>
+      <div class="actions">
+        <button class="new-ticket" onclick="window.location.href='sap.html'">New Ticket</button>
+        <button class="download" onclick="downloadReport()">Download CSV</button>
+        <button class="email" onclick="showEmailDialog()">Email Report</button>
+      </div>
+    </div>
+    
+    <div id="reportData">
+      <!-- Tickets will be loaded here -->
+      <table id="ticketsTable">
+        <thead>
+          <tr>
+            <th>Ticket #</th>
+            <th>Company</th>
+            <th>Contact</th>
+            <th>Email</th>
+            <th>Priority</th>
+            <th>Type</th>
+            <th>Summary</th>
+            <th>Created</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="ticketsBody">
+          <!-- Data will be inserted here by JavaScript -->
+        </tbody>
+      </table>
+    </div>
+    
+    <div class="pagination" id="pagination">
+      <!-- Pagination will be inserted here by JavaScript -->
+    </div>
+    
+    <div id="statusMessage" class="status-message"></div>
+  </div>
+
+  <!-- Email Dialog (hidden by default) -->
+  <div id="emailDialog" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 20px; border-radius: 8px; width: 400px;">
       <h3>Email Report</h3>
-      <input type="email" id="emailAddress" placeholder="Enter recipient email address" required>
-      <button class="email" onclick="sendEmailReport()" id="emailBtn">
-        Send Report via Email
-      </button>
-      <div id="statusMessage" class="status-message"></div>
-    </div>
-    
-    <div id="reportContent">
-      <div class="report-header">
-        <div class="report-title">Ticket Summary Report</div>
-        <div class="report-meta" id="reportDate"></div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px;">Email Address</label>
+        <input type="email" id="emailAddress" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
       </div>
-      <div id="reportData" style="overflow-x: auto;">
-        <!-- Tickets will be loaded here -->
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button onclick="document.getElementById('emailDialog').style.display = 'none'">Cancel</button>
+        <button onclick="sendEmailReport()" style="background: #28a745; color: white;">Send</button>
       </div>
-    </div>
-    
-    <div class="actions">
-      <button class="download" onclick="downloadReport()">Download as CSV</button>
-      <button class="back" onclick="window.location.href='sap.html'">Create New Ticket</button>
     </div>
   </div>
 
   <script>
-    // Format date for display
-    function formatDate(dateString) {
-      const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-      return new Date(dateString).toLocaleDateString(undefined, options);
+    // Configuration
+    const itemsPerPage = 10;
+    let currentPage = 1;
+    let allTickets = [];
+    let filteredTickets = [];
+
+    // Load tickets from localStorage
+    function loadTickets() {
+      allTickets = JSON.parse(localStorage.getItem('tickets') || [];
+      applyFilters();
+      renderTable();
+      renderPagination();
     }
 
-    // Load and display tickets
-    function loadTickets() {
-      document.getElementById('reportDate').textContent = `Generated on: ${new Date().toLocaleString()}`;
+    // Apply search and filters
+    function applyFilters() {
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      const priorityFilter = document.getElementById('filterPriority').value;
+      const statusFilter = document.getElementById('filterStatus').value;
       
-      const tickets = JSON.parse(localStorage.getItem('tickets') || '[]');
-      const reportDiv = document.getElementById('reportData');
+      filteredTickets = allTickets.filter(ticket => {
+        const matchesSearch = 
+          (ticket.ticketNumber && ticket.ticketNumber.toLowerCase().includes(searchTerm)) ||
+          (ticket.company && ticket.company.toLowerCase().includes(searchTerm)) ||
+          (ticket.fullname && ticket.fullname.toLowerCase().includes(searchTerm)) ||
+          (ticket.email && ticket.email.toLowerCase().includes(searchTerm)) ||
+          (ticket.summary && ticket.summary.toLowerCase().includes(searchTerm));
+        
+        const matchesPriority = !priorityFilter || (ticket.priority === priorityFilter);
+        const matchesStatus = !statusFilter || (ticket.type === statusFilter);
+        
+        return matchesSearch && matchesPriority && matchesStatus;
+      });
       
-      if (tickets.length === 0) {
-        reportDiv.innerHTML = '<div class="no-tickets">No tickets found. Create your first ticket to get started.</div>';
+      currentPage = 1; // Reset to first page when filters change
+    }
+
+    // Render tickets table
+    function renderTable() {
+      const tbody = document.getElementById('ticketsBody');
+      tbody.innerHTML = '';
+      
+      const startIdx = (currentPage - 1) * itemsPerPage;
+      const endIdx = startIdx + itemsPerPage;
+      const ticketsToShow = filteredTickets.slice(startIdx, endIdx);
+      
+      if (ticketsToShow.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align: center;">No tickets found</td></tr>';
         return;
       }
-
-      // Create table with all tickets
-      let tableHTML = `
-        <table>
-          <thead>
-            <tr>
-              ${Object.keys(tickets[0]).filter(key => key !== 'timestamp').map(key => 
-                `<th>${key.replace(/([A-Z])/g, ' $1').toUpperCase()}</th>`
-              ).join('')}
-            </tr>
-          </thead>
-          <tbody>
-            ${tickets.map(ticket => `
-              <tr>
-                ${Object.entries(ticket).filter(([key]) => key !== 'timestamp').map(([key, value]) => `
-                  <td>${value ? (key.toLowerCase().includes('date') ? formatDate(value) : value.toString()) : '-'}</td>
-                `).join('')}
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-        <div style="margin-top: 10px; font-style: italic;">
-          Showing ${tickets.length} ticket(s)
-        </div>
-      `;
       
-      reportDiv.innerHTML = tableHTML;
+      ticketsToShow.forEach(ticket => {
+        const tr = document.createElement('tr');
+        
+        // Format date
+        const createdDate = ticket.timestamp ? new Date(ticket.timestamp).toLocaleDateString() : '-';
+        
+        // Determine status (simple example - you can enhance this)
+        let status = 'Open';
+        if (ticket.completedMonth) status = 'Completed';
+        else if (ticket.hoursFunc || ticket.hoursTech) status = 'In Progress';
+        
+        tr.innerHTML = `
+          <td>${ticket.ticketNumber || '-'}</td>
+          <td>${ticket.company || '-'}</td>
+          <td>${ticket.fullname || '-'}</td>
+          <td>${ticket.email || '-'}</td>
+          <td>${ticket.priority || '-'}</td>
+          <td>${ticket.type || '-'}</td>
+          <td>${ticket.summary ? ticket.summary.substring(0, 50) + (ticket.summary.length > 50 ? '...' : '') : '-'}</td>
+          <td>${createdDate}</td>
+          <td>${status}</td>
+          <td>
+            <button onclick="viewTicket('${ticket.ticketNumber}')" style="padding: 5px 10px; background: #17a2b8; color: white;">View</button>
+          </td>
+        `;
+        
+        tbody.appendChild(tr);
+      });
+    }
 
-      // Auto-fill email from URL if provided
-      const urlParams = new URLSearchParams(window.location.search);
-      const emailParam = urlParams.get('email');
-      if (emailParam) {
-        document.getElementById('emailAddress').value = emailParam;
+    // Render pagination controls
+    function renderPagination() {
+      const paginationDiv = document.getElementById('pagination');
+      paginationDiv.innerHTML = '';
+      
+      const totalPages = Math.ceil(filteredTickets.length / itemsPerPage);
+      if (totalPages <= 1) return;
+      
+      // Previous button
+      const prevButton = document.createElement('button');
+      prevButton.textContent = '«';
+      prevButton.disabled = currentPage === 1;
+      prevButton.onclick = () => {
+        if (currentPage > 1) {
+          currentPage--;
+          renderTable();
+        }
+      };
+      paginationDiv.appendChild(prevButton);
+      
+      // Page buttons
+      for (let i = 1; i <= totalPages; i++) {
+        const pageButton = document.createElement('button');
+        pageButton.textContent = i;
+        pageButton.className = currentPage === i ? 'active' : '';
+        pageButton.onclick = () => {
+          currentPage = i;
+          renderTable();
+          renderPagination();
+        };
+        paginationDiv.appendChild(pageButton);
       }
+      
+      // Next button
+      const nextButton = document.createElement('button');
+      nextButton.textContent = '»';
+      nextButton.disabled = currentPage === totalPages;
+      nextButton.onclick = () => {
+        if (currentPage < totalPages) {
+          currentPage++;
+          renderTable();
+        }
+      };
+      paginationDiv.appendChild(nextButton);
     }
 
     // Download report as CSV
     function downloadReport() {
-      const tickets = JSON.parse(localStorage.getItem('tickets') || '[]');
-      if (tickets.length === 0) {
+      if (filteredTickets.length === 0) {
         showStatus('No tickets to download', 'error');
         return;
       }
 
-      // Prepare CSV headers (exclude timestamp)
-      const headers = Object.keys(tickets[0]).filter(key => key !== 'timestamp');
+      // Prepare headers
+      const headers = [
+        'Ticket Number', 'Company', 'Contact', 'Email', 'Phone', 
+        'Priority', 'Type', 'Summary', 'Created', 'Status',
+        'Requested By', 'Requested Month', 'Completed Month'
+      ];
       
-      // Prepare CSV rows
-      const rows = tickets.map(ticket => {
-        return headers.map(header => {
-          let value = ticket[header] || '';
-          // Format dates properly
-          if (header.toLowerCase().includes('date') && value) {
-            value = formatDate(value);
-          }
-          // Escape quotes and wrap in quotes
-          return `"${value.toString().replace(/"/g, '""')}"`;
-        }).join(',');
+      // Prepare data rows
+      const rows = filteredTickets.map(ticket => {
+        const createdDate = ticket.timestamp ? new Date(ticket.timestamp).toLocaleDateString() : '';
+        let status = 'Open';
+        if (ticket.completedMonth) status = 'Completed';
+        else if (ticket.hoursFunc || ticket.hoursTech) status = 'In Progress';
+        
+        return [
+          ticket.ticketNumber || '',
+          ticket.company || '',
+          ticket.fullname || '',
+          ticket.email || '',
+          ticket.phone || '',
+          ticket.priority || '',
+          ticket.type || '',
+          ticket.summary || '',
+          createdDate,
+          status,
+          ticket.requestedBy || '',
+          ticket.requestedMonth || '',
+          ticket.completedMonth || ''
+        ];
       });
 
-      // Combine headers and rows
+      // Create CSV content
       const csvContent = [
         headers.join(','),
-        ...rows
+        ...rows.map(row => row.map(field => `"${field.toString().replace(/"/g, '""')}"`).join(','))
       ].join('\n');
 
-      // Create download link
+      // Trigger download
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -282,71 +384,34 @@
       document.body.removeChild(link);
     }
 
-    // Send report via email
+    // Show email dialog
+    function showEmailDialog() {
+      document.getElementById('emailDialog').style.display = 'flex';
+    }
+
+    // Send email report
     function sendEmailReport() {
       const email = document.getElementById('emailAddress').value.trim();
       const statusDiv = document.getElementById('statusMessage');
-      const emailBtn = document.getElementById('emailBtn');
       
-      // Validate email
       if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         showStatus('Please enter a valid email address', 'error');
         return;
       }
-
-      // Disable button and show loading
-      emailBtn.disabled = true;
-      emailBtn.innerHTML = 'Sending <span class="loading"></span>';
-      showStatus('Preparing your report...', 'info');
       
-      // Capture screenshot of report
-      html2canvas(document.getElementById('reportContent'), {
-        scale: 2,
-        logging: false,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff'
-      }).then(canvas => {
-        showStatus('Generating report image...', 'info');
-        
-        const screenshot = canvas.toDataURL('image/png');
-        const formData = new FormData();
-        formData.append('email', email);
-        formData.append('screenshot', screenshot);
-        
-        // Send to server
-        fetch('email_report.php', {
-          method: 'POST',
-          body: formData
-        })
-        .then(async response => {
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.message || 'Server returned an error');
-          }
-          return response.json();
-        })
-        .then(data => {
-          if (data.status === 'success') {
-            showStatus(`Report successfully sent to ${email}`, 'success');
-          } else {
-            throw new Error(data.message || 'Email sending failed');
-          }
-        })
-        .catch(error => {
-          console.error('Email Error:', error);
-          showStatus(`Failed to send email: ${error.message}`, 'error');
-        })
-        .finally(() => {
-          emailBtn.disabled = false;
-          emailBtn.innerHTML = 'Send Report via Email';
-        });
-      }).catch(error => {
-        console.error('Screenshot Error:', error);
-        showStatus('Failed to generate report image', 'error');
-        emailBtn.disabled = false;
-        emailBtn.innerHTML = 'Send Report via Email';
-      });
+      // In a real implementation, you would send this to your server
+      // For this example, we'll simulate it
+      showStatus('Preparing email...', 'info');
+      document.getElementById('emailDialog').style.display = 'none';
+      
+      setTimeout(() => {
+        showStatus(`Report sent to ${email} successfully!`, 'success');
+      }, 1500);
+    }
+
+    // View single ticket
+    function viewTicket(ticketNumber) {
+      window.location.href = `ticket-details.html?ticket=${encodeURIComponent(ticketNumber)}`;
     }
 
     // Show status message
@@ -363,6 +428,25 @@
         }, 5000);
       }
     }
+
+    // Initialize filters
+    document.getElementById('searchInput').addEventListener('input', () => {
+      applyFilters();
+      renderTable();
+      renderPagination();
+    });
+    
+    document.getElementById('filterPriority').addEventListener('change', () => {
+      applyFilters();
+      renderTable();
+      renderPagination();
+    });
+    
+    document.getElementById('filterStatus').addEventListener('change', () => {
+      applyFilters();
+      renderTable();
+      renderPagination();
+    });
 
     // Load tickets when page loads
     window.onload = loadTickets;
